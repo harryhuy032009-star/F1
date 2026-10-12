@@ -1,0 +1,1120 @@
+<!DOCTYPE html>
+<html lang="vi" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>F1 Power Unit Engineering & Grand Prix Portal</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Plus+Jakarta+Sans:wght@300;400;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        f1red: '#E10600',
+                        f1dark: '#0B0D12',
+                        f1card: '#131722',
+                        f1border: '#2A2F40',
+                        f1cyan: '#00E5FF',
+                        f1yellow: '#FFD700',
+                        f1orange: '#FF6B00',
+                        f1green: '#00FF66',
+                        f1magenta: '#E040FB'
+                    },
+                    fontFamily: {
+                        orbitron: ['Orbitron', 'sans-serif'],
+                        sans: ['Plus Jakarta Sans', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace']
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #0B0D12; }
+        ::-webkit-scrollbar-thumb { background: #2A2F40; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #E10600; }
+
+        /* Flowing animations for SVG diagram */
+        @keyframes flowDash {
+            to { stroke-dashoffset: -40; }
+        }
+        .animate-flow-fast {
+            stroke-dasharray: 8, 4;
+            animation: flowDash 0.8s linear infinite;
+        }
+        .animate-flow-slow {
+            stroke-dasharray: 10, 6;
+            animation: flowDash 1.8s linear infinite;
+        }
+        .animate-pulse-glow {
+            animation: pulseGlow 2s infinite alternate;
+        }
+        @keyframes pulseGlow {
+            0% { filter: drop-shadow(0 0 2px rgba(0, 229, 255, 0.4)); }
+            100% { filter: drop-shadow(0 0 10px rgba(0, 229, 255, 0.9)); }
+        }
+        .glass-panel {
+            background: rgba(19, 23, 34, 0.85);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+    </style>
+</head>
+<body class="bg-f1dark text-gray-200 font-sans antialiased min-h-screen flex flex-col overflow-x-hidden">
+
+    <!-- Top Telemetry Header Bar -->
+    <header class="sticky top-0 z-50 bg-f1dark/95 border-b border-f1border backdrop-blur-md px-4 py-2.5 flex items-center justify-between">
+        <div class="flex items-center space-x-3">
+            <button id="sidebar-toggle" class="lg:hidden text-gray-400 hover:text-white p-2 rounded-lg bg-f1card border border-f1border">
+                <i class="fa-solid fa-bars text-lg"></i>
+            </button>
+            <div class="flex items-center space-x-2">
+                <span class="bg-f1red text-white text-xs font-black font-orbitron px-2 py-0.5 rounded tracking-widest uppercase">FIA F1</span>
+                <h1 class="text-lg md:text-xl font-black font-orbitron tracking-wider text-white flex items-center gap-2">
+                    POWER UNIT <span class="text-f1cyan text-xs hidden md:inline-block font-mono font-normal">| TELEMETRY PORTAL v2.6</span>
+                </h1>
+            </div>
+        </div>
+
+        <!-- Telemetry Indicators -->
+        <div class="hidden md:flex items-center space-x-6 font-mono text-xs">
+            <div class="flex items-center space-x-2">
+                <span class="w-2 h-2 rounded-full bg-f1green animate-ping"></span>
+                <span class="text-gray-400">PU STATUS: <span class="text-f1green font-bold">100% OPTIMAL</span></span>
+            </div>
+            <div class="flex items-center space-x-2 border-l border-f1border pl-4">
+                <i class="fa-solid fa-bolt text-f1yellow"></i>
+                <span class="text-gray-400">ES SOC: <span id="telemetry-soc" class="text-f1yellow font-bold">98.4%</span></span>
+            </div>
+            <div class="flex items-center space-x-2 border-l border-f1border pl-4">
+                <i class="fa-solid fa-gauge-high text-f1cyan"></i>
+                <span class="text-gray-400">ICE RPM: <span id="telemetry-rpm" class="text-f1cyan font-bold">14,850</span></span>
+            </div>
+        </div>
+
+        <!-- Quick Controls -->
+        <div class="flex items-center space-x-2">
+            <button id="btn-theme-toggle" class="p-2 text-gray-400 hover:text-f1yellow transition-colors rounded-lg bg-f1card border border-f1border" title="Toggle Theme/Mode">
+                <i class="fa-solid fa-sun"></i>
+            </button>
+            <a href="#page-1" onclick="navigateToPage(1)" class="bg-f1red/20 border border-f1red/50 text-f1red hover:bg-f1red hover:text-white transition-all text-xs font-bold px-3 py-1.5 rounded flex items-center gap-1.5">
+                <i class="fa-solid fa-diagram-project"></i> Sơ Đồ PU
+            </a>
+        </div>
+    </header>
+
+    <div class="flex-1 flex relative">
+        <!-- Sidebar Navigation -->
+        <aside id="sidebar" class="fixed lg:static inset-y-0 left-0 z-40 w-80 bg-f1card/95 border-r border-f1border flex flex-col transition-transform duration-300 transform -translate-x-full lg:translate-x-0 h-[calc(100vh-53px)] top-[53px]">
+            
+            <!-- Sidebar Header & Search -->
+            <div class="p-4 border-b border-f1border space-y-3">
+                <div class="relative">
+                    <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-gray-400 text-sm"></i>
+                    <input type="text" id="search-input" placeholder="Tìm kiếm nội dung F1..." class="w-full bg-f1dark/80 border border-f1border rounded-lg pl-9 pr-3 py-1.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-f1cyan font-sans transition">
+                </div>
+                
+                <div class="flex items-center justify-between text-[11px] font-mono text-gray-400">
+                    <button id="btn-expand-all" class="hover:text-f1cyan transition"><i class="fa-solid fa-angles-down mr-1"></i> Mở tất cả</button>
+                    <span>|</span>
+                    <button id="btn-collapse-all" class="hover:text-f1cyan transition"><i class="fa-solid fa-angles-up mr-1"></i> Thu gọn</button>
+                </div>
+            </div>
+
+            <!-- Navigation Links Accordion List -->
+            <div class="flex-1 overflow-y-auto p-3 space-y-2 text-xs" id="accordion-container">
+                
+                <!-- CATEGORY 1: POWER UNIT ENGINEERING (16 PAGES) -->
+                <div class="accordion-item rounded-lg border border-f1border/60 bg-f1dark/40 overflow-hidden">
+                    <button class="accordion-header w-full p-3 flex items-center justify-between text-left font-bold text-gray-200 hover:text-f1red hover:bg-f1dark/80 transition group">
+                        <span class="flex items-center gap-2">
+                            <i class="fa-solid fa-microchip text-f1red group-hover:scale-110 transition-transform"></i>
+                            KỸ THUẬT POWER UNIT (16 TRANG)
+                        </span>
+                        <i class="fa-solid fa-chevron-down accordion-arrow transition-transform text-gray-500"></i>
+                    </button>
+                    <div class="accordion-content hidden px-2 pb-2 space-y-0.5 border-t border-f1border/30 pt-1">
+                        <a href="javascript:void(0)" onclick="navigateToPage(1)" class="nav-btn p-2 rounded flex items-center justify-between hover:bg-f1red/10 hover:text-f1red text-gray-300 font-medium transition active-nav" data-page="1">
+                            <span>1. Tổng Quan V6 Hybrid</span>
+                            <span class="text-[10px] bg-f1red/20 text-f1red px-1.5 py-0.5 rounded font-mono">DIAGRAM</span>
+                        </a>
+                        <a href="javascript:void(0)" onclick="navigateToPage(2)" class="nav-btn p-2 rounded block hover:bg-f1red/10 hover:text-f1red text-gray-400 font-normal transition" data-page="2">2. Động Cơ Đốt Trong ICE & TJI</a>
+                        <a href="javascript:void(0)" onclick="navigateToPage(3)" class="nav-btn p-2 rounded block hover:bg-f1red/10 hover:text-f1red text-gray-400 font-normal transition" data-page="3">3. Split-Turbocharger</a>
+                        <a href="javascript:void(0)" onclick="navigateToPage(4)" class="nav-btn p-2 rounded block hover:bg-f1red/10 hover:text-f1red text-gray-400 font-normal transition" data-page="4">4. Động Cơ Điện MGU-K</a>
+                        <a href="javascript:void(0)" onclick="navigateToPage(5)" class="nav-btn p-2 rounded block hover:bg-f1red/10 hover:text-f1red text-gray-400 font-normal transition" data-page="5">5. Động Cơ Nhiệt Điện MGU-H</a>
+                        <a href="javascript:void(0)" onclick="navigateToPage(6)" class="nav-btn p-2 rounded block hover:bg-f1red/10 hover:text-f1red text-gray-400 font-normal transition" data-page="6">6. Pin Energy Store (ES)</a>
+                        <a href="javascript:void(0)" onclick="navigateToPage(7)" class="nav-btn p-2 rounded block hover:bg-f1red/10 hover:text-f1red text-gray-400 font-normal transition" data-page="7">7. Điều Khiển Điện CE & Inverter</a>
+                        <a href="javascript:void(0)" onclick="navigateToPage(8)" class="nav-btn p-2 rounded block hover:bg-f1red/10 hover:text-f1red text-gray-400 font-normal transition" data-page="8">8. Hộp Số Seamless Shift 8 Cấp</a>
+                        <a href="javascript:void(0)" onclick="navigateToPage(9)" class="nav-btn p-2 rounded block hover:bg-f1red/10 hover:text-f1red text-gray-400 font-normal transition" data-page="9">9. Nhiên Liệu E10 & Dầu Nhớt</a>
+                        <a href="javascript:void(0)" onclick="navigateToPage(10)" class="nav-btn p-2 rounded block hover:bg-f1red/10 hover:text-f1red text-gray-400 font-normal transition" data-page="10">10. Thu Hồi & Lift and Coast</a>
+                        <a href="javascript:void(0)" onclick="navigateToPage(11)" class="nav-btn p-2 rounded block hover:bg-f1red/10 hover:text-f1red text-gray-400 font-normal transition" data-page="11">11. Chế Độ Overtake & Derating</a>
+                        <a href="javascript:void(0)" onclick="navigateToPage(12)" class="nav-btn p-2 rounded block hover:bg-f1red/10 hover:text-f1red text-gray-400 font-normal transition" data-page="12">12. Engine Maps & Party Mode</a>
+                        <a href="javascript:void(0)" onclick="navigateToPage(13)" class="nav-btn p-2 rounded block hover:bg-f1red/10 hover:text-f1red text-gray-400 font-normal transition" data-page="13">13. Kỷ Nguyên Động Cơ 2026</a>
+                        <a href="javascript:void(0)" onclick="navigateToPage(14)" class="nav-btn p-2 rounded block hover:bg-f1red/10 hover:text-f1red text-gray-400 font-normal transition" data-page="14">14. Lịch Sử Tiến Hóa V10/V8/V6</a>
+                        <a href="javascript:void(0)" onclick="navigateToPage(15)" class="nav-btn p-2 rounded block hover:bg-f1red/10 hover:text-f1red text-gray-400 font-normal transition" data-page="15">15. Giới Hạn Linh Kiện & Phạt Grid</a>
+                        <a href="javascript:void(0)" onclick="navigateToPage(16)" class="nav-btn p-2 rounded block hover:bg-f1red/10 hover:text-f1red text-gray-400 font-normal transition" data-page="16">16. Tản Nhiệt Sidepod & Intercooler</a>
+                    </div>
+                </div>
+
+                <!-- CATEGORY 2: THỂ THỨC GIẢI ĐẤU -->
+                <div class="accordion-item rounded-lg border border-f1border/60 bg-f1dark/40 overflow-hidden">
+                    <button class="accordion-header w-full p-3 flex items-center justify-between text-left font-bold text-gray-200 hover:text-f1cyan hover:bg-f1dark/80 transition group">
+                        <span class="flex items-center gap-2">
+                            <i class="fa-solid fa-flag-checkered text-f1cyan group-hover:scale-110 transition-transform"></i>
+                            THỂ THỨC GIẢI ĐẤU & LUẬT
+                        </span>
+                        <i class="fa-solid fa-chevron-down accordion-arrow transition-transform text-gray-500"></i>
+                    </button>
+                    <div class="accordion-content hidden px-2 pb-2 space-y-0.5 border-t border-f1border/30 pt-1">
+                        <a href="javascript:void(0)" onclick="navigateToPage(17)" class="nav-btn p-2 rounded block hover:bg-f1cyan/10 hover:text-f1cyan text-gray-400 font-normal transition" data-page="17">Lịch Trình Chặng Race Weekend</a>
+                        <a href="javascript:void(0)" onclick="navigateToPage(18)" class="nav-btn p-2 rounded block hover:bg-f1cyan/10 hover:text-f1cyan text-gray-400 font-normal transition" data-page="18">Thể Thức Sprint Race Chi Tiết</a>
+                        <a href="javascript:void(0)" onclick="navigateToPage(19)" class="nav-btn p-2 rounded block hover:bg-f1cyan/10 hover:text-f1cyan text-gray-400 font-normal transition" data-page="19">Hệ Thống Tính Điểm & Vòng Nhanh Nhất</a>
+                    </div>
+                </div>
+
+                <!-- CATEGORY 3: LỊCH SỬ KỶ NGUYÊN -->
+                <div class="accordion-item rounded-lg border border-f1border/60 bg-f1dark/40 overflow-hidden">
+                    <button class="accordion-header w-full p-3 flex items-center justify-between text-left font-bold text-gray-200 hover:text-f1yellow hover:bg-f1dark/80 transition group">
+                        <span class="flex items-center gap-2">
+                            <i class="fa-solid fa-trophy text-f1yellow group-hover:scale-110 transition-transform"></i>
+                            LỊCH SỬ KỶ NGUYÊN F1
+                        </span>
+                        <i class="fa-solid fa-chevron-down accordion-arrow transition-transform text-gray-500"></i>
+                    </button>
+                    <div class="accordion-content hidden px-2 pb-2 space-y-0.5 border-t border-f1border/30 pt-1">
+                        <a href="javascript:void(0)" onclick="navigateToPage(20)" class="nav-btn p-2 rounded block hover:bg-f1yellow/10 hover:text-f1yellow text-gray-400 font-normal transition" data-page="20">Các Kỷ Nguyên Kỹ Thuật (1950 - Nay)</a>
+                        <a href="javascript:void(0)" onclick="navigateToPage(21)" class="nav-btn p-2 rounded block hover:bg-f1yellow/10 hover:text-f1yellow text-gray-400 font-normal transition" data-page="21">Những Cuộc Đối Đầu Huyền Thoại</a>
+                    </div>
+                </div>
+
+                <!-- CATEGORY 4: SỰ KIỆN & ĐƯỜNG ĐUA -->
+                <div class="accordion-item rounded-lg border border-f1border/60 bg-f1dark/40 overflow-hidden">
+                    <button class="accordion-header w-full p-3 flex items-center justify-between text-left font-bold text-gray-200 hover:text-f1green hover:bg-f1dark/80 transition group">
+                        <span class="flex items-center gap-2">
+                            <i class="fa-solid fa-road text-f1green group-hover:scale-110 transition-transform"></i>
+                            SỰ KIỆN & ĐƯỜNG ĐUA ICONIC
+                        </span>
+                        <i class="fa-solid fa-chevron-down accordion-arrow transition-transform text-gray-500"></i>
+                    </button>
+                    <div class="accordion-content hidden px-2 pb-2 space-y-0.5 border-t border-f1border/30 pt-1">
+                        <a href="javascript:void(0)" onclick="navigateToPage(22)" class="nav-btn p-2 rounded block hover:bg-f1green/10 hover:text-f1green text-gray-400 font-normal transition" data-page="22">Monaco, Silverstone, Spa & Monza</a>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Sidebar Footer -->
+            <div class="p-3 border-t border-f1border bg-f1dark/90 text-center text-[11px] text-gray-500 font-mono">
+                FIA Formula 1 Tech Spec 2024/2026
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="flex-1 p-4 md:p-8 overflow-y-auto max-w-7xl mx-auto w-full">
+            
+            <!-- Page Container -->
+            <div id="content-display">
+
+                <!-- ========================================================================= -->
+                <!-- PAGE 1: TỔNG QUAN KIẾN TRÚC POWER UNIT V6 HYBRID & HIGH-FIDELITY DIAGRAM -->
+                <!-- ========================================================================= -->
+                <section id="page-1-content" class="page-view space-y-6">
+                    
+                    <!-- Title Bar -->
+                    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-f1border pb-4">
+                        <div>
+                            <div class="flex items-center gap-2 text-f1red font-mono text-xs font-bold uppercase tracking-wider mb-1">
+                                <i class="fa-solid fa-microchip"></i> Trang 1 / 16 — Technical Architecture
+                            </div>
+                            <h2 class="text-2xl md:text-3xl font-black font-orbitron text-white">TỔNG QUAN KIẾN TRÚC POWER UNIT V6 HYBRID</h2>
+                        </div>
+                        <div class="flex items-center gap-2 bg-f1card p-2 rounded-lg border border-f1border text-xs font-mono">
+                            <span class="text-gray-400">TỔNG CÔNG SUẤT:</span>
+                            <span class="text-f1cyan font-bold text-sm">~1,020 HP</span>
+                            <span class="text-gray-500">|</span>
+                            <span class="text-gray-400">HIỆU SUẤT NHIỆT:</span>
+                            <span class="text-f1green font-bold text-sm">>52%</span>
+                        </div>
+                    </div>
+
+                    <!-- HIGH-FIDELITY EXACT FLOW DIAGRAM (SVG CANVAS) -->
+                    <div class="glass-panel p-4 md:p-6 rounded-2xl border border-f1border shadow-2xl relative overflow-hidden">
+                        
+                        <!-- Diagram Controls / Header -->
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 border-b border-f1border/60 pb-3">
+                            <div class="flex items-center gap-2">
+                                <span class="w-3 h-3 rounded-full bg-f1red inline-block animate-pulse"></span>
+                                <h3 class="font-orbitron font-bold text-sm text-gray-200 uppercase tracking-wide">
+                                    Sơ Đồ Luồng Năng Lượng Chi Tiết (F1 Power Unit Flow Diagram)
+                                </h3>
+                            </div>
+                            <div class="flex flex-wrap items-center gap-3 text-xs font-mono">
+                                <label class="flex items-center gap-1.5 cursor-pointer text-gray-300 hover:text-white">
+                                    <input type="checkbox" id="toggle-animation" checked class="accent-f1red">
+                                    <span>Hoạt Họa Luồng</span>
+                                </label>
+                                <span class="text-gray-600">|</span>
+                                <span class="text-f1cyan font-semibold"><i class="fa-solid fa-circle-info mr-1"></i>Rê chuột lên linh kiện để xem thông số</span>
+                            </div>
+                        </div>
+
+                        <!-- Technical SVG Canvas Diagram -->
+                        <div class="w-full overflow-x-auto bg-[#10121A] rounded-xl p-2 md:p-4 border border-f1border/80">
+                            <svg viewBox="0 0 1000 680" class="w-full h-auto min-w-[750px] font-sans select-none" id="pu-svg-diagram">
+                                
+                                <defs>
+                                    <!-- Markers for Flow Arrows -->
+                                    <marker id="arrow-red" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                                        <path d="M 0 1 L 10 5 L 0 9 z" fill="#FF2A2A"/>
+                                    </marker>
+                                    <marker id="arrow-cyan" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                                        <path d="M 0 1 L 10 5 L 0 9 z" fill="#00E5FF"/>
+                                    </marker>
+                                    <marker id="arrow-orange" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                                        <path d="M 0 1 L 10 5 L 0 9 z" fill="#FF7700"/>
+                                    </marker>
+                                    <marker id="arrow-blue" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                                        <path d="M 0 1 L 10 5 L 0 9 z" fill="#2962FF"/>
+                                    </marker>
+                                    <marker id="arrow-yellow" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                                        <path d="M 0 1 L 10 5 L 0 9 z" fill="#FFD700"/>
+                                    </marker>
+                                    <marker id="arrow-magenta" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                                        <path d="M 0 1 L 10 5 L 0 9 z" fill="#E040FB"/>
+                                    </marker>
+
+                                    <!-- Intercooler Grid Pattern -->
+                                    <pattern id="intercooler-pattern" width="10" height="10" patternUnits="userSpaceOnUse">
+                                        <path d="M 0 5 L 10 5 M 5 0 L 5 10" stroke="#00E5FF" stroke-width="0.8" opacity="0.5"/>
+                                    </pattern>
+
+                                    <!-- Battery Cell Pattern -->
+                                    <pattern id="battery-pattern" width="20" height="30" patternUnits="userSpaceOnUse">
+                                        <rect x="2" y="2" width="16" height="26" rx="2" fill="#FF9100" stroke="#000" stroke-width="1"/>
+                                    </pattern>
+                                </defs>
+
+                                <!-- DIAGRAM BACKGROUND GRID -->
+                                <rect width="1000" height="680" fill="#0C0E14" rx="12"/>
+                                <path d="M 0 100 L 1000 100 M 0 200 L 1000 200 M 0 300 L 1000 300 M 0 400 L 1000 400 M 0 500 L 1000 500 M 0 600 L 1000 600" stroke="#1E2333" stroke-width="1" stroke-dasharray="4,4"/>
+                                <path d="M 100 0 L 100 680 M 200 0 L 200 680 M 300 0 L 300 680 M 400 0 L 400 680 M 500 0 L 500 680 M 600 0 L 600 680 M 700 0 L 700 680 M 800 0 L 800 680 M 900 0 L 900 680" stroke="#1E2333" stroke-width="1" stroke-dasharray="4,4"/>
+
+                                <!-- ================= FLOW LINES LAYER ================= -->
+
+                                <!-- 1. AIR INTAKE FLOW (Cyan & White Arrows) -->
+                                <!-- Intake Funnel -->
+                                <polygon points="120,630 250,590 250,650 120,650" fill="#00B0FF" opacity="0.8" stroke="#00E5FF" stroke-width="2"/>
+                                <text x="130" y="645" fill="#FFFFFF" font-size="14" font-weight="bold" font-family="Orbitron">Air intake</text>
+                                <path d="M 200 637 L 230 637" stroke="#FFF" stroke-width="3" marker-end="url(#arrow-cyan)"/>
+
+                                <!-- Air line from intake to Compressor -->
+                                <path d="M 250 630 C 350 630, 360 600, 390 580" fill="none" stroke="#00E5FF" stroke-width="22" stroke-linecap="round"/>
+                                <path d="M 250 630 C 350 630, 360 600, 390 580" fill="none" stroke="#E0F7FA" stroke-width="8" class="flow-line animate-flow-fast"/>
+
+                                <!-- Air line from Compressor through Intercooler to Engine Intake Manifold -->
+                                <path d="M 410 520 L 350 520 L 350 350" fill="none" stroke="#00E5FF" stroke-width="22" stroke-linecap="round" stroke-linejoin="round"/>
+                                <path d="M 410 520 L 350 520 L 350 350" fill="none" stroke="#E0F7FA" stroke-width="8" class="flow-line animate-flow-fast"/>
+                                <path d="M 350 500 L 350 470" stroke="#FFF" stroke-width="3" marker-end="url(#arrow-cyan)"/>
+
+                                <path d="M 350 250 L 350 210 L 410 210 L 430 230 L 580 230" fill="none" stroke="#00E5FF" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+                                <path d="M 350 250 L 350 210 L 410 210 L 430 230 L 580 230" fill="none" stroke="#E0F7FA" stroke-width="10" class="flow-line animate-flow-fast"/>
+                                <path d="M 450 230 L 490 230" stroke="#FFF" stroke-width="3" marker-end="url(#arrow-cyan)"/>
+
+                                <!-- 2. EXHAUST GAS FLOW (Orange Lines) -->
+                                <!-- Engine Exhaust manifold to Turbine -->
+                                <path d="M 600 280 L 640 280 L 640 500 L 670 500" fill="none" stroke="#FF6B00" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/>
+                                <path d="M 600 280 L 640 280 L 640 500 L 670 500" fill="none" stroke="#FFE0B2" stroke-width="8" class="flow-line animate-flow-fast"/>
+                                <path d="M 640 360 L 640 400" stroke="#FFF" stroke-width="3" marker-end="url(#arrow-orange)"/>
+
+                                <!-- Turbine Wastegate / Exhaust Outlet -->
+                                <path d="M 720 560 L 750 560 C 800 560, 820 620, 960 620" fill="none" stroke="#FF6B00" stroke-width="32" stroke-linecap="round"/>
+                                <path d="M 720 560 L 750 560 C 800 560, 820 620, 960 620" fill="none" stroke="#FFF3E0" stroke-width="12" class="flow-line animate-flow-fast"/>
+                                <!-- Extra Big Arrow at Exhaust Exit -->
+                                <polygon points="920,590 970,620 920,650" fill="#FF5000"/>
+                                <path d="M 830 620 L 870 620" stroke="#FFF" stroke-width="4" marker-end="url(#arrow-orange)"/>
+
+                                <!-- 3. FUEL LINES (Red Lines & Fuel Pump) -->
+                                <path d="M 600 110 L 710 110 L 710 230 L 480 230 L 480 280" fill="none" stroke="#FF1744" stroke-width="5" stroke-linejoin="round"/>
+                                <path d="M 710 230 L 480 230" fill="none" stroke="#FF80AB" stroke-width="2" class="flow-line animate-flow-slow"/>
+                                <path d="M 710 320 L 480 320" fill="none" stroke="#FF1744" stroke-width="5"/>
+                                <!-- Fuel Pump Symbol -->
+                                <circle cx="710" cy="180" r="14" fill="#E0E0E0" stroke="#333" stroke-width="2"/>
+                                <path d="M 700 180 L 720 180 M 710 170 L 710 190" stroke="#FF1744" stroke-width="3"/>
+                                <text x="730" y="185" fill="#FFFFFF" font-size="13" font-weight="bold">Fuel pump</text>
+
+                                <!-- Injector Lines into ICE -->
+                                <path d="M 480 230 L 480 340" stroke="#FF1744" stroke-width="4"/>
+                                <circle cx="480" cy="250" r="4" fill="#FF1744"/>
+                                <circle cx="480" cy="285" r="4" fill="#FF1744"/>
+                                <circle cx="480" cy="320" r="4" fill="#FF1744"/>
+
+                                <!-- 4. ELECTRIC & UNRESTRICTED ENERGY LINES (Blue, Yellow, Magenta) -->
+                                <!-- ES Battery to CE (Blue Lines: 2MJ/Lap & 4MJ/Lap) -->
+                                <!-- Top Blue Arc (2MJ/Lap Discharge / Recovery) -->
+                                <path d="M 120 110 L 190 110" stroke="#2962FF" stroke-width="12" fill="none"/>
+                                <path d="M 120 110 L 190 110" stroke="#82B1FF" stroke-width="4" class="flow-line animate-flow-fast"/>
+                                <path d="M 180 110 L 150 110" stroke="#FFF" stroke-width="2" marker-end="url(#arrow-blue)"/>
+
+                                <rect x="270" y="80" width="80" height="22" rx="4" fill="#0D47A1" stroke="#2962FF"/>
+                                <text x="276" y="96" fill="#FFF" font-size="11" font-weight="bold" font-family="Orbitron">2MJ/Lap</text>
+
+                                <!-- Bottom Blue Arc (4MJ/Lap MGU-K Recovery to ES) -->
+                                <path d="M 120 150 L 190 150" stroke="#2962FF" stroke-width="14" fill="none"/>
+                                <path d="M 120 150 L 190 150" stroke="#82B1FF" stroke-width="5" class="flow-line animate-flow-fast"/>
+                                <path d="M 150 150 L 180 150" stroke="#FFF" stroke-width="2" marker-end="url(#arrow-blue)"/>
+
+                                <rect x="270" y="125" width="80" height="22" rx="4" fill="#0D47A1" stroke="#2962FF"/>
+                                <text x="276" y="141" fill="#FFF" font-size="11" font-weight="bold" font-family="Orbitron">4MJ/Lap</text>
+
+                                <!-- MGU-K to CE Blue Power Lines -->
+                                <path d="M 270 102 C 380 102, 380 160, 430 170 L 480 170" fill="none" stroke="#2962FF" stroke-width="12"/>
+                                <path d="M 270 146 C 360 146, 380 190, 430 190 L 480 190" fill="none" stroke="#2962FF" stroke-width="12"/>
+
+                                <!-- Unrestricted Line (Thick Yellow Line: CE <-> MGU-H) -->
+                                <path d="M 240 180 L 240 370 C 240 420, 260 420, 500 420 L 500 450" fill="none" stroke="#FFD700" stroke-width="24" stroke-linejoin="round"/>
+                                <path d="M 240 180 L 240 370 C 240 420, 260 420, 500 420 L 500 450" fill="none" stroke="#FFF59D" stroke-width="8" class="flow-line animate-flow-fast"/>
+                                <text x="180" y="270" fill="#FFD700" font-size="15" font-weight="900" font-family="Orbitron" transform="rotate(-90 180 270)">Unrestricted</text>
+
+                                <!-- e-Boost Line (Magenta Line: CE -> MGU-H / Turbo e-Compressor) -->
+                                <path d="M 210 180 L 210 390 C 210 500, 230 500, 430 500" fill="none" stroke="#E040FB" stroke-width="6" stroke-linejoin="round"/>
+                                <path d="M 210 180 L 210 390 C 210 500, 230 500, 430 500" fill="none" stroke="#F8BBD0" stroke-width="2" class="flow-line animate-flow-fast"/>
+                                <text x="250" y="490" fill="#E040FB" font-size="13" font-weight="bold" font-family="Orbitron">e-Boost</text>
+
+                                <!-- MGU-H Mechanical Shaft (Connects Compressor - MGU-H - Turbine) -->
+                                <line x1="430" y1="540" x2="680" y2="540" stroke="#9E9E9E" stroke-width="10"/>
+                                <line x1="430" y1="540" x2="680" y2="540" stroke="#FFFFFF" stroke-width="3" stroke-dasharray="6,6"/>
+
+
+                                <!-- ================= COMPONENTS HARDWARE LAYER ================= -->
+
+                                <!-- 1. ES & CE CONTAINER BOX (Top Left - Brown/Dark Box) -->
+                                <rect x="20" y="20" width="310" height="170" rx="12" fill="#2D241E" stroke="#5D4037" stroke-width="3" opacity="0.9"/>
+                                <text x="165" y="42" fill="#FFF" font-size="14" font-weight="bold" font-family="Orbitron">ES</text>
+
+                                <!-- Battery (ES - Energy Store) Sub-box -->
+                                <g class="cursor-pointer hover:opacity-80 transition" onclick="showComponentDetails('es')">
+                                    <rect x="35" y="50" width="100" height="120" rx="6" fill="#1A1A1A" stroke="#FF9100" stroke-width="2"/>
+                                    <!-- Battery cells -->
+                                    <rect x="45" y="60" width="22" height="100" fill="#FF9100" rx="3"/>
+                                    <rect x="73" y="60" width="22" height="100" fill="#FF9100" rx="3"/>
+                                    <rect x="101" y="60" width="22" height="100" fill="#FF9100" rx="3"/>
+                                    <text x="50" y="115" fill="#000" font-size="13" font-weight="900" font-family="Orbitron" transform="rotate(-90 58 115)">Battery</text>
+                                </g>
+
+                                <!-- Control Electronics (CE) Box -->
+                                <g class="cursor-pointer hover:opacity-80 transition" onclick="showComponentDetails('ce')">
+                                    <rect x="195" y="50" width="115" height="120" rx="8" fill="#FFC107" stroke="#FFA000" stroke-width="2"/>
+                                    <text x="232" y="118" fill="#000" font-size="22" font-weight="900" font-family="Orbitron">CE</text>
+
+                                    <!-- ExH & ExD Ports Labels -->
+                                    <text x="145" y="165" fill="#FFAB40" font-size="11" font-weight="bold">ExH</text>
+                                    <text x="295" y="165" fill="#FFAB40" font-size="11" font-weight="bold">ExD</text>
+                                </g>
+
+                                <!-- 2. MGU-K (Kinetic Motor Generator) -->
+                                <g class="cursor-pointer hover:opacity-80 transition" onclick="showComponentDetails('mguk')">
+                                    <rect x="420" y="160" width="170" height="50" rx="6" fill="#0018A8" stroke="#2962FF" stroke-width="2"/>
+                                    <!-- Grid mesh on MGU-K -->
+                                    <path d="M 420 160 L 590 210 M 440 160 L 590 195 M 420 180 L 520 210" stroke="#3D5AFE" stroke-width="1.5" opacity="0.6"/>
+                                    <text x="460" y="192" fill="#FFFFFF" font-size="16" font-weight="900" font-family="Orbitron">MGU-K</text>
+                                </g>
+
+                                <!-- 3. FUEL TANK (Top Right Red Box) -->
+                                <g class="cursor-pointer hover:opacity-80 transition" onclick="showComponentDetails('fuel')">
+                                    <rect x="520" y="20" width="170" height="65" rx="10" fill="#C62828" stroke="#FF1744" stroke-width="2"/>
+                                    <text x="580" y="60" fill="#FFFFFF" font-size="18" font-weight="900" font-family="Orbitron">Fuel</text>
+                                </g>
+
+                                <!-- 4. ICE - INTERNAL COMBUSTION ENGINE (V6 Cylinder Block) -->
+                                <g class="cursor-pointer hover:opacity-80 transition" onclick="showComponentDetails('ice')">
+                                    <!-- Engine Main Block -->
+                                    <rect x="420" y="220" width="210" height="150" rx="12" fill="#757575" stroke="#B0BEC5" stroke-width="3"/>
+                                    
+                                    <!-- V6 Pistons Circles -->
+                                    <circle cx="460" cy="325" r="18" fill="#424242" stroke="#E0E0E0" stroke-width="2"/>
+                                    <circle cx="510" cy="325" r="18" fill="#424242" stroke="#E0E0E0" stroke-width="2"/>
+                                    <circle cx="560" cy="325" r="18" fill="#424242" stroke="#E0E0E0" stroke-width="2"/>
+                                    
+                                    <!-- Injector Header Box -->
+                                    <rect x="470" y="240" width="110" height="25" rx="4" fill="#EEEEEE" stroke="#9E9E9E"/>
+                                    <text x="492" y="258" fill="#000" font-size="12" font-weight="bold">Injector</text>
+                                </g>
+
+                                <!-- 5. TRANSMISSION & REAR TIRES -->
+                                <!-- Transmission Box -->
+                                <g class="cursor-pointer hover:opacity-80 transition" onclick="showComponentDetails('gearbox')">
+                                    <polygon points="630,230 790,260 790,360 630,370" fill="#212121" stroke="#616161" stroke-width="2"/>
+                                    <text x="650" y="305" fill="#FFFFFF" font-size="13" font-weight="bold" font-family="Orbitron">Transmission</text>
+                                </g>
+
+                                <!-- Axle Bar -->
+                                <rect x="770" y="60" width="12" height="480" fill="#424242"/>
+
+                                <!-- Top Rear Tire -->
+                                <g class="cursor-pointer hover:opacity-80 transition" onclick="showComponentDetails('tires')">
+                                    <rect x="710" y="20" width="170" height="110" rx="16" fill="#111" stroke="#424242" stroke-width="3"/>
+                                    <text x="770" y="80" fill="#FFF" font-size="16" font-weight="bold" font-family="Orbitron">Tires</text>
+                                </g>
+
+                                <!-- Bottom Rear Tire -->
+                                <g class="cursor-pointer hover:opacity-80 transition" onclick="showComponentDetails('tires')">
+                                    <rect x="710" y="440" width="170" height="110" rx="16" fill="#111" stroke="#424242" stroke-width="3"/>
+                                    <text x="770" y="500" fill="#FFF" font-size="16" font-weight="bold" font-family="Orbitron">Tires</text>
+                                </g>
+
+                                <!-- 6. INTERCOOLER (Middle Left Air Cooler) -->
+                                <g class="cursor-pointer hover:opacity-80 transition" onclick="showComponentDetails('intercooler')">
+                                    <rect x="290" y="270" width="120" height="190" rx="8" fill="#263238" stroke="#00E5FF" stroke-width="3"/>
+                                    <rect x="300" y="285" width="100" height="160" fill="url(#intercooler-pattern)"/>
+                                    <rect x="305" y="340" width="90" height="30" fill="#10121A" opacity="0.8" rx="4"/>
+                                    <text x="312" y="360" fill="#00E5FF" font-size="12" font-weight="bold" font-family="Orbitron">Intercooler</text>
+                                </g>
+
+                                <!-- 7. TURBOCHARGER SYSTEM (COMPRESSOR - MGU-H - TURBINE) -->
+                                <!-- Air Compressor -->
+                                <g class="cursor-pointer hover:opacity-80 transition" onclick="showComponentDetails('compressor')">
+                                    <path d="M 390 510 L 440 510 L 440 570 L 370 590 L 370 540 z" fill="#B0BEC5" stroke="#ECEFF1" stroke-width="2"/>
+                                    <text x="375" y="615" fill="#B0BEC5" font-size="11" font-weight="bold">Compressor</text>
+                                </g>
+
+                                <!-- MGU-H (Heat Motor Generator Unit) -->
+                                <g class="cursor-pointer hover:opacity-80 transition" onclick="showComponentDetails('mguh')">
+                                    <rect x="470" y="515" width="130" height="50" rx="6" fill="#0018A8" stroke="#2962FF" stroke-width="2"/>
+                                    <path d="M 470 515 L 600 565 M 490 515 L 600 550" stroke="#3D5AFE" stroke-width="1.5" opacity="0.6"/>
+                                    <text x="495" y="547" fill="#FFFFFF" font-size="15" font-weight="900" font-family="Orbitron">MGU-H</text>
+                                </g>
+
+                                <!-- Exhaust Turbine -->
+                                <g class="cursor-pointer hover:opacity-80 transition" onclick="showComponentDetails('turbine')">
+                                    <path d="M 660 510 L 710 490 L 710 590 L 660 570 z" fill="#546E7A" stroke="#78909C" stroke-width="2"/>
+                                    <text x="665" y="615" fill="#B0BEC5" font-size="11" font-weight="bold">Turbine</text>
+                                </g>
+
+                                <text x="480" y="620" fill="#888" font-size="12" font-weight="bold" font-family="Orbitron">Turbocharger</text>
+
+
+                                <!-- ================= LEGEND BAR AT BOTTOM ================= -->
+                                <g transform="translate(30, 650)">
+                                    <!-- Legend Box Background -->
+                                    <rect x="0" y="-35" width="130" height="55" rx="6" fill="#151924" stroke="#2A2F40"/>
+                                    <text x="10" y="-20" fill="#FFF" font-size="10" font-weight="bold">FLOW LEGEND</text>
+                                    
+                                    <!-- Red: Fuel -->
+                                    <line x1="10" y1="-10" x2="30" y2="-10" stroke="#FF1744" stroke-width="4"/>
+                                    <text x="35" y="-7" fill="#AAA" font-size="10">Fuel</text>
+
+                                    <!-- Cyan: Air -->
+                                    <line x1="70" y1="-10" x2="90" y2="-10" stroke="#00E5FF" stroke-width="4"/>
+                                    <text x="95" y="-7" fill="#AAA" font-size="10">Air</text>
+
+                                    <!-- Orange: Exhaust -->
+                                    <line x1="10" y1="5" x2="30" y2="5" stroke="#FF6B00" stroke-width="4"/>
+                                    <text x="35" y="8" fill="#AAA" font-size="10">Exhaust</text>
+
+                                    <!-- Blue: Electric -->
+                                    <line x1="70" y1="5" x2="90" y2="5" stroke="#2962FF" stroke-width="4"/>
+                                    <text x="95" y="8" fill="#AAA" font-size="10">Electric</text>
+                                </g>
+                            </svg>
+                        </div>
+
+                        <!-- Dynamic Interactive Info Box -->
+                        <div id="diagram-modal" class="mt-4 bg-f1dark/90 p-4 rounded-xl border border-f1cyan/40 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                            <div class="space-y-1">
+                                <div class="flex items-center gap-2">
+                                    <span id="modal-tag" class="px-2 py-0.5 rounded bg-f1cyan/20 text-f1cyan font-mono text-xs font-bold uppercase">HỆ THỐNG V6 HYBRID</span>
+                                    <h4 id="modal-title" class="font-orbitron font-bold text-white text-base">Nhấp vào một thành phần trên sơ đồ để xem thông số kỹ thuật</h4>
+                                </div>
+                                <p id="modal-desc" class="text-xs text-gray-300 leading-relaxed">
+                                    Sơ đồ trên mô tả đầy đủ 6 thành phần cốt lõi của F1 Power Unit 1.6L V6 Turbo Hybrid cùng các luồng trao đổi năng lượng Kinetic, Thermal, Electrical và Fluid.
+                                </p>
+                            </div>
+                            <div id="modal-stats" class="flex gap-4 font-mono text-xs border-t md:border-t-0 md:border-l border-f1border pt-2 md:pt-0 md:pl-4 min-w-max">
+                                <div>
+                                    <span class="text-gray-500 block">GIỚI HẠN:</span>
+                                    <span class="text-f1yellow font-bold">15,000 RPM</span>
+                                </div>
+                                <div>
+                                    <span class="text-gray-500 block">ÁP SUẤT NHIÊN LIỆU:</span>
+                                    <span class="text-f1red font-bold">500 BAR</span>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <!-- Detailed Explanation Cards for Page 1 -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        
+                        <div class="glass-panel p-5 rounded-xl border border-f1border space-y-3">
+                            <div class="w-10 h-10 rounded-lg bg-f1red/20 border border-f1red/40 flex items-center justify-center text-f1red font-bold">
+                                <i class="fa-solid fa-fire text-lg"></i>
+                            </div>
+                            <h3 class="font-orbitron font-bold text-lg text-white">1. Động Cơ Đốt Trong (ICE)</h3>
+                            <p class="text-xs text-gray-300 leading-relaxed">
+                                Động cơ V6 90° dung tích 1.6 lít, trang bị tăng áp đơn Turbocharger. Sử dụng công nghệ buồng đốt phụ TJI (Turbulent Jet Ignition), đạt tỷ số nén cực đại 18:1 và hiệu suất nhiệt vượt mốc 50%.
+                            </p>
+                        </div>
+
+                        <div class="glass-panel p-5 rounded-xl border border-f1border space-y-3">
+                            <div class="w-10 h-10 rounded-lg bg-f1cyan/20 border border-f1cyan/40 flex items-center justify-center text-f1cyan font-bold">
+                                <i class="fa-solid fa-bolt text-lg"></i>
+                            </div>
+                            <h3 class="font-orbitron font-bold text-lg text-white">2. MGU-K & MGU-H</h3>
+                            <p class="text-xs text-gray-300 leading-relaxed">
+                                <strong class="text-f1cyan">MGU-K:</strong> Thu hồi năng lượng động năng khi phanh (tối đa 2MJ/vòng) và tái bổ sung 120kW (161HP) vào trục khuỷu.<br>
+                                <strong class="text-f1yellow">MGU-H:</strong> Thu hồi nhiệt năng từ khí thải turbo, hoạt động không giới hạn dung lượng.
+                            </p>
+                        </div>
+
+                        <div class="glass-panel p-5 rounded-xl border border-f1border space-y-3">
+                            <div class="w-10 h-10 rounded-lg bg-f1yellow/20 border border-f1yellow/40 flex items-center justify-center text-f1yellow font-bold">
+                                <i class="fa-solid fa-car-battery text-lg"></i>
+                            </div>
+                            <h3 class="font-orbitron font-bold text-lg text-white">3. Energy Store (ES) & CE</h3>
+                            <p class="text-xs text-gray-300 leading-relaxed">
+                                Khối Pin Lithium-ion điện áp cao (400V - 1000V) nặng tối thiểu 20kg. Được quản lý bởi bộ biến tần Control Electronics (CE) điều phối dòng điện hàng nghìn Ampe với độ chính xác miligiây.
+                            </p>
+                        </div>
+
+                    </div>
+
+                </section>
+
+                <!-- ========================================================================= -->
+                <!-- PAGE 2: ĐỘNG CƠ ĐỐT TRONG ICE V6 1.6L & TJI IGNITION -->
+                <!-- ========================================================================= -->
+                <section id="page-2-content" class="page-view hidden space-y-6">
+                    <div class="border-b border-f1border pb-4">
+                        <div class="text-f1red font-mono text-xs font-bold uppercase tracking-wider mb-1">Trang 2 / 16 — Internal Combustion Engine</div>
+                        <h2 class="text-2xl md:text-3xl font-black font-orbitron text-white">ĐỘNG CƠ ĐỐT TRONG ICE V6 1.6L & CÔNG NGHỆ BỤNG ĐỐT PHỤ TJI</h2>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div class="glass-panel p-6 rounded-xl border border-f1border space-y-4">
+                            <h3 class="font-orbitron font-bold text-xl text-f1red flex items-center gap-2">
+                                <i class="fa-solid fa-gear"></i> Thông Số Kỹ Thuật Chuẩn FIA
+                            </h3>
+                            <ul class="space-y-3 text-sm font-mono text-gray-300">
+                                <li class="flex justify-between border-b border-f1border/40 pb-2">
+                                    <span class="text-gray-400">Cấu trúc Xylanh:</span>
+                                    <span class="text-white font-bold">V6 90° Engine Angle</span>
+                                </li>
+                                <li class="flex justify-between border-b border-f1border/40 pb-2">
+                                    <span class="text-gray-400">Dung Tích Xylanh:</span>
+                                    <span class="text-white font-bold">1,600 cc (1.6 Liters)</span>
+                                </li>
+                                <li class="flex justify-between border-b border-f1border/40 pb-2">
+                                    <span class="text-gray-400">Đường Kính Piston (Bore):</span>
+                                    <span class="text-white font-bold">80 mm (+0/-0.1mm)</span>
+                                </li>
+                                <li class="flex justify-between border-b border-f1border/40 pb-2">
+                                    <span class="text-gray-400">Áp Suất Bơm Nhiên Liệu:</span>
+                                    <span class="text-f1yellow font-bold">500 BAR Direct Injection</span>
+                                </li>
+                                <li class="flex justify-between border-b border-f1border/40 pb-2">
+                                    <span class="text-gray-400">Giới Hạn Tốc Độ Mạch:</span>
+                                    <span class="text-f1cyan font-bold">15,000 RPM (Tối đa)</span>
+                                </li>
+                                <li class="flex justify-between border-b border-f1border/40 pb-2">
+                                    <span class="text-gray-400">Tốc Độ Dòng Nhiên Liệu:</span>
+                                    <span class="text-f1red font-bold">Tối đa 100 kg/giờ (>10,500 RPM)</span>
+                                </li>
+                            </ul>
+                        </div>
+
+                        <div class="glass-panel p-6 rounded-xl border border-f1border space-y-4">
+                            <h3 class="font-orbitron font-bold text-xl text-f1cyan flex items-center gap-2">
+                                <i class="fa-solid fa-bolt-lightning"></i> Công Nghệ Đốt Đột Phá: TJI (Turbulent Jet Ignition)
+                            </h3>
+                            <p class="text-xs text-gray-300 leading-relaxed">
+                                TJI là công nghệ giúp động cơ F1 đốt cháy hỗn hợp nhiên liệu siêu nghèo (Lean Fuel Mixture) mà không gây nổ sớm (Knocking).
+                            </p>
+                            <div class="bg-f1dark/80 p-4 rounded-lg border border-f1cyan/30 text-xs space-y-2 font-mono">
+                                <div class="text-f1cyan font-bold">QUY TRÌNH HOẠT ĐỘNG TJI:</div>
+                                <ol class="list-decimal list-inside space-y-1.5 text-gray-300">
+                                    <li>Chỉ 3% nhiên liệu được phun vào Buồng Đốt Phụ (Pre-Chamber) nhỏ chứa Bugi.</li>
+                                    <li>Bugi kích hoạt tia lửa điện, làm bùng nổ hỗn hợp giàu nhiên liệu trong buồng phụ.</li>
+                                    <li>Các tia lửa dạng vòi phun (High-velocity turbulent jets) bắn qua các lỗ li ti vào buồng đốt chính.</li>
+                                    <li>Toàn bộ buồng đốt chính được đốt cháy tức thì và đồng đều 100%.</li>
+                                </ol>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- PAGE 3: TURBOCHARGER & SPLIT-TURBO -->
+                <section id="page-3-content" class="page-view hidden space-y-6">
+                    <div class="border-b border-f1border pb-4">
+                        <div class="text-f1red font-mono text-xs font-bold uppercase tracking-wider mb-1">Trang 3 / 16 — Turbocharging Engineering</div>
+                        <h2 class="text-2xl md:text-3xl font-black font-orbitron text-white">BỘ TĂNG ÁP TURBOCHARGER & THIẾT KẾ SPLIT-TURBO</h2>
+                    </div>
+                    <div class="glass-panel p-6 rounded-xl border border-f1border space-y-4">
+                        <p class="text-sm text-gray-300 leading-relaxed">
+                            Bộ tăng áp trong xe đua F1 quay với tốc độ lên đến 125,000 vòng/phút. Mercedes-AMG F1 đã tạo ra cuộc cách mạng khi phát minh ra kiến trúc <strong class="text-f1cyan">Split-Turbo (Turbo Tách Rời)</strong>:
+                        </p>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-mono">
+                            <div class="bg-f1dark p-4 rounded-lg border border-f1border">
+                                <span class="text-f1cyan font-bold text-sm block mb-2">COMPRESSOR (Phía Trước Động Cơ)</span>
+                                Nén không khí mát vào động cơ. Việc đặt ở phía trước giúp không khí không bị hấp thụ nhiệt từ Turbine khí thải nóng 1,000°C.
+                            </div>
+                            <div class="bg-f1dark p-4 rounded-lg border border-f1border">
+                                <span class="text-f1orange font-bold text-sm block mb-2">TURBINE (Phía Sau Động Cơ)</span>
+                                Được dẫn động bởi khí thải xả ra từ các xylanh. Nối với Compressor bằng một trục truyền động chạy dọc qua giữa góc V6 của động cơ.
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- PAGE 4: MGU-K -->
+                <section id="page-4-content" class="page-view hidden space-y-6">
+                    <div class="border-b border-f1border pb-4">
+                        <div class="text-f1red font-mono text-xs font-bold uppercase tracking-wider mb-1">Trang 4 / 16 — Kinetic Energy Recovery</div>
+                        <h2 class="text-2xl md:text-3xl font-black font-orbitron text-white">ĐỘNG CƠ ĐIỆN MGU-K (MOTOR GENERATOR UNIT - KINETIC)</h2>
+                    </div>
+                    <div class="glass-panel p-6 rounded-xl border border-f1border space-y-4">
+                        <div class="flex items-center gap-4 text-f1cyan font-mono text-sm">
+                            <span>CÔNG SUẤT TỐI ĐA: 120 kW (161 HP)</span>
+                            <span>|</span>
+                            <span>GIỚI HẠN THU HỒI: 2 MJ / VÒNG</span>
+                        </div>
+                        <p class="text-sm text-gray-300 leading-relaxed">
+                            MGU-K kết nối trực tiếp với trục khuỷu của ICE. Khi tay đua phanh, MGU-K hoạt động như một máy phát điện tạo ra sức cản hãm xe (Brake-by-wire) và nạp điện vào Pin ES. Khi đạp ga, nó ngay lập tức tiếp thêm 161 mã lực hỗ trợ tăng tốc.
+                        </p>
+                    </div>
+                </section>
+
+                <!-- PAGE 5: MGU-H -->
+                <section id="page-5-content" class="page-view hidden space-y-6">
+                    <div class="border-b border-f1border pb-4">
+                        <div class="text-f1red font-mono text-xs font-bold uppercase tracking-wider mb-1">Trang 5 / 16 — Heat Energy Recovery</div>
+                        <h2 class="text-2xl md:text-3xl font-black font-orbitron text-white">ĐỘNG CƠ ĐIỆN MGU-H (MOTOR GENERATOR UNIT - HEAT)</h2>
+                    </div>
+                    <div class="glass-panel p-6 rounded-xl border border-f1border space-y-4">
+                        <p class="text-sm text-gray-300 leading-relaxed">
+                            MGU-H là đỉnh cao công nghệ vũ trụ được mang vào F1. Gắn giữa bánh nén Compressor và bánh turbine. MGU-H hấp thụ năng lượng dư thừa từ khí thải để phát điện truyền trực tiếp sang MGU-K hoặc nạp Pin mà <strong class="text-f1yellow">KHÔNG BỊ GIỚI HẠN DUNG LƯỢNG NẠP (Unrestricted)</strong>. Đồng thời, MGU-H đóng vai trò loại bỏ hoàn toàn độ trễ tăng áp (Zero Turbo Lag).
+                        </p>
+                    </div>
+                </section>
+
+                <!-- PAGE 6: ENERGY STORE (ES) -->
+                <section id="page-6-content" class="page-view hidden space-y-6">
+                    <div class="border-b border-f1border pb-4">
+                        <div class="text-f1red font-mono text-xs font-bold uppercase tracking-wider mb-1">Trang 6 / 16 — Battery Energy Storage</div>
+                        <h2 class="text-2xl md:text-3xl font-black font-orbitron text-white">BỘ LƯU TRỮ NĂNG LƯỢNG PIN ENERGY STORE (ES)</h2>
+                    </div>
+                    <div class="glass-panel p-6 rounded-xl border border-f1border space-y-4">
+                        <p class="text-sm text-gray-300">
+                            Khối pin Lithium-ion thiết kế riêng biệt, hoạt động ở điện áp lên đến 1,000 Volt. Trọng lượng quy định từ 20kg - 25kg, đặt ngay bên dưới bình nhiên liệu để hạ thấp trọng tâm xe. Pin F1 có khả năng xả và nạp dòng điện khổng lồ trong vài giây mà vẫn duy trì nhiệt độ an toàn nhờ chất lưu làm mát chuyên dụng.
+                        </p>
+                    </div>
+                </section>
+
+                <!-- PAGE 7: CONTROL ELECTRONICS (CE) -->
+                <section id="page-7-content" class="page-view hidden space-y-6">
+                    <div class="border-b border-f1border pb-4">
+                        <div class="text-f1red font-mono text-xs font-bold uppercase tracking-wider mb-1">Trang 7 / 16 — Inverter & Safety System</div>
+                        <h2 class="text-2xl md:text-3xl font-black font-orbitron text-white">BỘ ĐIỀU KHUYỂN ĐIỆN TỬ TRUNG TÂM CE & BỘ BIẾN TẦN INVERTER</h2>
+                    </div>
+                    <div class="glass-panel p-6 rounded-xl border border-f1border space-y-4">
+                        <p class="text-sm text-gray-300">
+                            CE chứa bộ biếnkal Inverter chuyển đổi dòng điện một chiều (DC) từ Pin thành dòng điện xoay chiều (AC) 3 pha tần số cao để vận hành MGU-K và MGU-H. Hệ thống tích hợp các cảm biến an toàn điện áp cao FIA (High Voltage Safety Status Light).
+                        </p>
+                    </div>
+                </section>
+
+                <!-- PAGE 8: TRANSMISSION & SEAMLESS SHIFT -->
+                <section id="page-8-content" class="page-view hidden space-y-6">
+                    <div class="border-b border-f1border pb-4">
+                        <div class="text-f1red font-mono text-xs font-bold uppercase tracking-wider mb-1">Trang 8 / 16 — Transmission Systems</div>
+                        <h2 class="text-2xl md:text-3xl font-black font-orbitron text-white">HỘP SỐ 8 CẤP SEAMLESS SHIFT & VỎ TITANIUM/CARBON</h2>
+                    </div>
+                    <div class="glass-panel p-6 rounded-xl border border-f1border space-y-4">
+                        <p class="text-sm text-gray-300">
+                            Hộp số 8 cấp tiến + 1 cấp lùi. Công nghệ sang số không gián đoạn Seamless Shift cho phép cài cấp số tiếp theo trước khi nhả cấp số cũ, thời gian sang số chỉ tốn dưới <strong class="text-f1cyan">0.005 giây (5 miligiây)</strong>. Vỏ hộp số làm bằng sợi Carbon hoặc Titanium chịu lực nén cực đại của hệ thống treo sau.
+                        </p>
+                    </div>
+                </section>
+
+                <!-- PAGE 9: E10 FUEL & LUBRICANTS -->
+                <section id="page-9-content" class="page-view hidden space-y-6">
+                    <div class="border-b border-f1border pb-4">
+                        <div class="text-f1red font-mono text-xs font-bold uppercase tracking-wider mb-1">Trang 9 / 16 — Sustainable Chemistry</div>
+                        <h2 class="text-2xl md:text-3xl font-black font-orbitron text-white">NHIÊN LIỆU SINH HỌC E10 & DẦU NHỚT TINH VI</h2>
+                    </div>
+                    <div class="glass-panel p-6 rounded-xl border border-f1border space-y-4">
+                        <p class="text-sm text-gray-300">
+                            Từ mùa giải 2022, F1 chuyển sang sử dụng nhiên liệu E10 (10% Ethanol tái tạo bền vững). Dầu nhớt động cơ được phát triển riêng bởi Shell, Petronas, Mobil1... giúp giảm ma sát tối đa ở 15,000 RPM và đóng vai trò tản nhiệt trực tiếp cho các pít-tông.
+                        </p>
+                    </div>
+                </section>
+
+                <!-- PAGE 10: ENERGY MANAGEMENT & LIFT AND COAST -->
+                <section id="page-10-content" class="page-view hidden space-y-6">
+                    <div class="border-b border-f1border pb-4">
+                        <div class="text-f1red font-mono text-xs font-bold uppercase tracking-wider mb-1">Trang 10 / 16 — Energy Deployment Tactics</div>
+                        <h2 class="text-2xl md:text-3xl font-black font-orbitron text-white">QUY TRÌNH THU HỒI & PHÂN BỔ NĂNG LƯỢNG (LIFT AND COAST)</h2>
+                    </div>
+                    <div class="glass-panel p-6 rounded-xl border border-f1border space-y-4">
+                        <p class="text-sm text-gray-300">
+                            Kỹ thuật <strong class="text-f1yellow">Lift and Coast</strong>: Tay đua nhả chân ga sớm vài chục mét trước điểm phanh góc cua. Xe tiếp tục trôi bằng động năng, giúp tiết kiệm nhiên liệu, giảm nhiệt độ phanh và cho phép MGU-K bắt đầu thu hồi điện năng sớm hơn.
+                        </p>
+                    </div>
+                </section>
+
+                <!-- PAGE 11: OVERTAKE MODE & DERATING -->
+                <section id="page-11-content" class="page-view hidden space-y-6">
+                    <div class="border-b border-f1border pb-4">
+                        <div class="text-f1red font-mono text-xs font-bold uppercase tracking-wider mb-1">Trang 11 / 16 — Telemetry Anomalies</div>
+                        <h2 class="text-2xl md:text-3xl font-black font-orbitron text-white">CHẾ ĐỘ OVERTAKE & HIỆN TƯỢNG DERATING</h2>
+                    </div>
+                    <div class="glass-panel p-6 rounded-xl border border-f1border space-y-4">
+                        <p class="text-sm text-gray-300">
+                            <strong class="text-f1red">Derating:</strong> Là hiện tượng xe F1 bị hụt công suất cuối đoạn thẳng do Pin ES hết sạch điện nạp (xả hết 4MJ quy định) và MGU-K ngừng hoạt động, khiến xe mất đi 161 horsepower ngay lập tức.
+                        </p>
+                    </div>
+                </section>
+
+                <!-- PAGE 12: ENGINE MAPS & PARTY MODE -->
+                <section id="page-12-content" class="page-view hidden space-y-6">
+                    <div class="border-b border-f1border pb-4">
+                        <div class="text-f1red font-mono text-xs font-bold uppercase tracking-wider mb-1">Trang 12 / 16 — Software Mapping</div>
+                        <h2 class="text-2xl md:text-3xl font-black font-orbitron text-white">BẢN ĐỒ ĐỘNG CƠ (ENGINE MAPS) & LỊCH SỬ PARTY MODE</h2>
+                    </div>
+                    <div class="glass-panel p-6 rounded-xl border border-f1border space-y-4">
+                        <p class="text-sm text-gray-300">
+                            Engine Map quyết định tỷ lệ hòa khí, áp suất Turbo và sức mạnh điện tử. Trước đây các đội đua sử dụng "Party Mode" - chế độ đẩy áp suất cực đại để phân hạng Qualifying, nhưng hiện tại FIA bắt buộc dùng chung 1 bản đồ động cơ cho cả Qualifying và Race.
+                        </p>
+                    </div>
+                </section>
+
+                <!-- PAGE 13: 2026 ENGINE REGULATIONS -->
+                <section id="page-13-content" class="page-view hidden space-y-6">
+                    <div class="border-b border-f1border pb-4">
+                        <div class="text-f1red font-mono text-xs font-bold uppercase tracking-wider mb-1">Trang 13 / 16 — Future Regulations</div>
+                        <h2 class="text-2xl md:text-3xl font-black font-orbitron text-white">KỶ NGUYÊN ĐỘNG CƠ F1 2026 BỀN VỮNG</h2>
+                    </div>
+                    <div class="glass-panel p-6 rounded-xl border border-f1border space-y-4">
+                        <table class="w-full text-xs font-mono text-left border-collapse">
+                            <thead>
+                                <tr class="border-b border-f1border text-f1cyan">
+                                    <th class="p-2">THÔNG SỐ</th>
+                                    <th class="p-2">KỶ NGUYÊN HIỆN TẠI (2024)</th>
+                                    <th class="p-2 text-f1green">KỶ NGUYÊN MỚI 2026</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-f1border/40 text-gray-300">
+                                <tr>
+                                    <td class="p-2 font-bold">MGU-H</td>
+                                    <td class="p-2">Có mặt (Đắt đỏ, phức tạp)</td>
+                                    <td class="p-2 text-f1red font-bold">LOẠI BỎ HÒAN TOÀN</td>
+                                </tr>
+                                <tr>
+                                    <td class="p-2 font-bold">MGU-K Power</td>
+                                    <td class="p-2">120 kW (161 HP)</td>
+                                    <td class="p-2 text-f1green font-bold">350 kW (469 HP) - Tăng x3</td>
+                                </tr>
+                                <tr>
+                                    <td class="p-2 font-bold">Nhiên Liệu</td>
+                                    <td class="p-2">E10 Bio-fuel</td>
+                                    <td class="p-2 text-f1green font-bold">100% Sustainable E-Fuel</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- PAGE 14: ENGINE EVOLUTION HISTORY -->
+                <section id="page-14-content" class="page-view hidden space-y-6">
+                    <div class="border-b border-f1border pb-4">
+                        <div class="text-f1red font-mono text-xs font-bold uppercase tracking-wider mb-1">Trang 14 / 16 — Historical Evolution</div>
+                        <h2 class="text-2xl md:text-3xl font-black font-orbitron text-white">LỊCH SỬ TIẾN HÓA ĐỘNG CƠ: V10, V8 & V6 TURBO-HYBRID</h2>
+                    </div>
+                    <div class="glass-panel p-6 rounded-xl border border-f1border space-y-4 text-xs text-gray-300">
+                        <p><strong class="text-f1yellow">Kỷ nguyên V10 (1989-2005):</strong> Động cơ 3.0L hút khí tự nhiên, gầm hú thần thánh lên tới 20,000 RPM, công suất 900+ HP.</p>
+                        <p><strong class="text-f1cyan">Kỷ nguyên V8 (2006-2013):</strong> Động cơ 2.4L giới hạn 18,000 RPM, giới hạn chi phí và bắt đầu引入 KERS.</p>
+                        <p><strong class="text-f1red">Kỷ nguyên V6 Turbo-Hybrid (2014-Nay):</strong> Đỉnh cao hiệu suất năng lượng xanh, vượt mốc 1,000 mã lực.</p>
+                    </div>
+                </section>
+
+                <!-- PAGE 15: GRID PENALTIES & ALLOCATION -->
+                <section id="page-15-content" class="page-view hidden space-y-6">
+                    <div class="border-b border-f1border pb-4">
+                        <div class="text-f1red font-mono text-xs font-bold uppercase tracking-wider mb-1">Trang 15 / 16 — Regulatory Penalties</div>
+                        <h2 class="text-2xl md:text-3xl font-black font-orbitron text-white">GIỚI HẠN LINH KIỆN & PHẠT LÙI VỊ TRÍ GRID (GRID PENALTIES)</h2>
+                    </div>
+                    <div class="glass-panel p-6 rounded-xl border border-f1border space-y-4 text-xs text-gray-300">
+                        <p>Mỗi tay đua chỉ được dùng giới hạn số lượng linh kiện trong 1 mùa giải (Ví dụ: 4 ICE, 4 Turbo, 4 MGU-K, 2 Pin ES...). Nếu vượt quá giới hạn, sẽ bị phạt lùi 5 đến 10 vị trí xuất phát, hoặc phạt xuất phát từ đường Pit (Pit lane start).</p>
+                    </div>
+                </section>
+
+                <!-- PAGE 16: COOLING & SIDEPOD INTERCOOLER -->
+                <section id="page-16-content" class="page-view hidden space-y-6">
+                    <div class="border-b border-f1border pb-4">
+                        <div class="text-f1red font-mono text-xs font-bold uppercase tracking-wider mb-1">Trang 16 / 16 — Aerothermal Engineering</div>
+                        <h2 class="text-2xl md:text-3xl font-black font-orbitron text-white">HỆ THỐNG TẢN NHIỆT KÉP SIDEPOD & INTERCOOLER</h2>
+                    </div>
+                    <div class="glass-panel p-6 rounded-xl border border-f1border space-y-4 text-xs text-gray-300">
+                        <p>Cân bằng khí động học Aerodynamics và tản nhiệt Engine Cooling. Các khe hút gió Sidepod dẫn luồng khí làm mát qua bộ trao đổi nhiệt Air-to-Air hoặc Water-to-Air Intercooler trước khi đi vào động cơ V6.</p>
+                    </div>
+                </section>
+
+                <!-- ========================================================================= -->
+                <!-- PAGES 17-22: OTHER KNOWLEDGE CATEGORIES -->
+                <!-- ========================================================================= -->
+                <section id="page-17-content" class="page-view hidden space-y-6">
+                    <div class="border-b border-f1border pb-4">
+                        <h2 class="text-2xl font-black font-orbitron text-f1cyan">LỊCH TRÌNH CHẶNG RACE WEEKEND STANDARD</h2>
+                    </div>
+                    <p class="text-sm text-gray-300">Thứ 6 (FP1 & FP2) -> Thứ 7 (FP3 & Qualifying phân hạng) -> Chủ Nhật (Grand Prix Race chính thức).</p>
+                </section>
+
+                <section id="page-18-content" class="page-view hidden space-y-6">
+                    <div class="border-b border-f1border pb-4">
+                        <h2 class="text-2xl font-black font-orbitron text-f1cyan">THỂ THỨC SPRINT RACE CHI TIẾT</h2>
+                    </div>
+                    <p class="text-sm text-gray-300">Cuộc đua ngắn 100km ngày thứ 7. Không cần vào Pit bắt buộc. Tối đa 8 điểm cho tay đua về nhất.</p>
+                </section>
+
+                <section id="page-19-content" class="page-view hidden space-y-6">
+                    <div class="border-b border-f1border pb-4">
+                        <h2 class="text-2xl font-black font-orbitron text-f1cyan">HỆ THỐNG TÍNH ĐIỂM & VÒNG NHANH NHẤT (FASTEST LAP)</h2>
+                    </div>
+                    <p class="text-sm text-gray-300">Top 10 nhận điểm: 25 - 18 - 15 - 12 - 10 - 8 - 6 - 4 - 2 - 1. Cộng 1 điểm cho Fastest lap nếu nằm trong Top 10.</p>
+                </section>
+
+                <section id="page-20-content" class="page-view hidden space-y-6">
+                    <div class="border-b border-f1border pb-4">
+                        <h2 class="text-2xl font-black font-orbitron text-f1yellow">LỊCH SỬ CÁC KỶ NGUYÊN KỸ THUẬT (1950 - NAY)</h2>
+                    </div>
+                    <p class="text-sm text-gray-300">Từ động cơ đặt trước thập niên 1950 đến kỷ nguyên Ground Effect Aerodynamics và Hybrid Power Unit hiện đại.</p>
+                </section>
+
+                <section id="page-21-content" class="page-view hidden space-y-6">
+                    <div class="border-b border-f1border pb-4">
+                        <h2 class="text-2xl font-black font-orbitron text-f1yellow">NHỮNG CUỘC ĐỐI ĐẦU HUYỀN THOẠI</h2>
+                    </div>
+                    <p class="text-sm text-gray-300">Ayrton Senna vs Alain Prost, Michael Schumacher vs Mika Hakkinen, Lewis Hamilton vs Max Verstappen (2021).</p>
+                </section>
+
+                <section id="page-22-content" class="page-view hidden space-y-6">
+                    <div class="border-b border-f1border pb-4">
+                        <h2 class="text-2xl font-black font-orbitron text-f1green">SỰ KIỆN & ĐƯỜNG ĐUA ICONIC</h2>
+                    </div>
+                    <p class="text-sm text-gray-300">Monaco (Thánh địa đường phố), Silverstone (Quê hương F1), Spa-Francorchamps (Góc cua Eau Rouge thần thánh), Monza (Đền thờ tốc độ Cathedral of Speed).</p>
+                </section>
+
+            </div>
+
+        </main>
+    </div>
+
+    <!-- Application Logic Script -->
+    <script>
+        // Data for Component Information Modal
+        const componentDetails = {
+            ice: {
+                tag: "ĐỘNG CƠ ĐỐT TRONG (ICE)",
+                title: "1.6L V6 Single Turbocharged Engine",
+                desc: "Động cơ đốt trong 1.6L V6 90 độ, tích hợp công nghệ buồng đốt phụ TJI. Giới hạn tốc độ quay 15,000 RPM, áp suất phun nhiên liệu trực tiếp 500 BAR.",
+                stats: { limit: "15,000 RPM", pressure: "500 BAR" }
+            },
+            mguk: {
+                tag: "ĐỘNG CƠ ĐIỆN ĐỘNG NĂNG",
+                title: "MGU-K (Motor Generator Unit - Kinetic)",
+                desc: "Thu hồi động năng sinh ra khi phanh hãm xe (tối đa 2MJ/vòng) và tái bổ sung 120kW (161 Mã lực) trực tiếp vào trục khuỷu khi tăng tốc.",
+                stats: { limit: "120 kW / 161 HP", pressure: "2 MJ / Lap" }
+            },
+            mguh: {
+                tag: "ĐỘNG CƠ ĐIỆN NHIỆT NĂNG",
+                title: "MGU-H (Motor Generator Unit - Heat)",
+                desc: "Gắn trên trục kết nối Turbocharger, thu hồi nhiệt năng từ khí thải xả ra. Không bị giới hạn dung lượng sạc điện, triệt tiêu độ trễ Turbo.",
+                stats: { limit: "125,000 RPM", pressure: "Unrestricted" }
+            },
+            es: {
+                tag: "PIN ĐIỆN ÁP CAO",
+                title: "Energy Store (ES Lithium-Ion Battery)",
+                desc: "Khối pin Lithium-Ion nặng từ 20-25kg, hoạt động ở điện áp 400V - 1000V. Lưu trữ điện năng nạp từ MGU-K và MGU-H để xả khi cần vượt.",
+                stats: { limit: "20-25 kg", pressure: "400V - 1000V" }
+            },
+            ce: {
+                tag: "BỘ BIẾN TẦN ĐIỀU KHUYỂN",
+                title: "Control Electronics (CE Inverter)",
+                desc: "Bộ não điều khiển dòng điện cao áp giữa Battery, MGU-K và MGU-H với tần số chuyển mạch hàng kilohertz, tích hợp mạch an toàn FIA.",
+                stats: { limit: "High Voltage", pressure: "< 1ms Response" }
+            },
+            fuel: {
+                tag: "BÌNH NHIÊN LIỆU & BƠM",
+                title: "Fuel Cell & High Pressure Pump",
+                desc: "Bình nhiên liệu Kevlar siêu bền nằm giữa khoang lái và động cơ. Dùng nhiên liệu sinh học E10 với tốc độ dòng chảy tối đa 100kg/giờ.",
+                stats: { limit: "110 kg Cap", pressure: "100 kg/h Flow" }
+            },
+            intercooler: {
+                tag: "BỘ TẢN NHIỆT KHÍ NÉN",
+                title: "Air-to-Air / Air-to-Liquid Intercooler",
+                desc: "Hạ nhiệt độ không khí nén từ Turbo (có thể lên tới 200°C) xuống mức ~40°C trước khi đi vào buồng đốt ICE để tăng mật độ oxy.",
+                stats: { limit: "~40°C Outlet", pressure: "High Efficiency" }
+            },
+            compressor: {
+                tag: "BÁNH NÉN AIR COMPRESSOR",
+                title: "Turbocharger Compressor Wheel",
+                desc: "Nén không khí nạp ở áp suất cao vào động cơ V6, nâng cao hiệu suất nạp khí.",
+                stats: { limit: "125,000 RPM", pressure: "3.5+ BAR Boost" }
+            },
+            turbine: {
+                tag: "BÁNH TURBINE KHÍ THẢI",
+                title: "Exhaust Gas Turbine",
+                desc: "Trích xuất động năng & nhiệt năng từ dòng khí thải xả ra từ các xi-lanh để quay bánh nén và MGU-H.",
+                stats: { limit: "1,000°C Temp", pressure: "High Velocity" }
+            },
+            gearbox: {
+                tag: "HỘP SỐ SANG SỐ KHÔNG ĐỘ TRỄ",
+                title: "8-Speed Seamless Shift Transmission",
+                desc: "Hộp số 8 cấp tiến sang số trong thời gian chỉ 0.005s, kết hợp vỏ hợp kim Titanium/Carbon cực kỳ bền vững.",
+                stats: { limit: "8 Gears", pressure: "5ms Shift" }
+            },
+            tires: {
+                tag: "LỐP XE SAU (REAR TIRES)",
+                title: "Pirelli F1 Rear Slick Tires",
+                desc: "Lốp xe chịu tải trọng mô-men xoắn hơn 1,000 mã lực truyền trực tiếp từ động cơ và MGU-K xuống mặt đường.",
+                stats: { limit: "140°C Thermal", pressure: "Pirelli Compound" }
+            }
+        };
+
+        // Function to display component details in interactive box
+        function showComponentDetails(key) {
+            const data = componentDetails[key];
+            if (!data) return;
+
+            document.getElementById('modal-tag').innerText = data.tag;
+            document.getElementById('modal-title').innerText = data.title;
+            document.getElementById('modal-desc').innerText = data.desc;
+            document.getElementById('modal-stats').innerHTML = `
+                <div>
+                    <span class="text-gray-500 block">THÔNG SỐ 1:</span>
+                    <span class="text-f1yellow font-bold">${data.stats.limit}</span>
+                </div>
+                <div>
+                    <span class="text-gray-500 block">THÔNG SỐ 2:</span>
+                    <span class="text-f1cyan font-bold">${data.stats.pressure}</span>
+                </div>
+            `;
+        }
+
+        // Navigation Controller
+        function navigateToPage(pageNum) {
+            // Hide all pages
+            document.querySelectorAll('.page-view').forEach(el => el.classList.add('hidden'));
+
+            // Show selected page
+            const targetPage = document.getElementById(`page-${pageNum}-content`);
+            if (targetPage) {
+                targetPage.classList.remove('hidden');
+            }
+
+            // Update Active Link in Sidebar
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                if (btn.getAttribute('data-page') == pageNum) {
+                    btn.classList.add('bg-f1red/20', 'text-f1red', 'font-bold');
+                    btn.classList.remove('text-gray-400');
+                } else {
+                    btn.classList.remove('bg-f1red/20', 'text-f1red', 'font-bold');
+                    btn.classList.add('text-gray-400');
+                }
+            });
+
+            // Auto close mobile sidebar
+            if (window.innerWidth < 1024) {
+                document.getElementById('sidebar').classList.add('-translate-x-full');
+            }
+
+            // Scroll to top
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        // DOM Ready Initializations
+        document.addEventListener('DOMContentLoaded', () => {
+
+            // Sidebar Accordion Toggle
+            document.querySelectorAll('.accordion-header').forEach(header => {
+                header.addEventListener('click', () => {
+                    const content = header.nextElementSibling;
+                    const arrow = header.querySelector('.accordion-arrow');
+                    
+                    content.classList.toggle('hidden');
+                    if (arrow) {
+                        arrow.classList.toggle('rotate-180');
+                    }
+                });
+            });
+
+            // Expand All Accordions
+            document.getElementById('btn-expand-all').addEventListener('click', () => {
+                document.querySelectorAll('.accordion-content').forEach(el => el.classList.remove('hidden'));
+                document.querySelectorAll('.accordion-arrow').forEach(el => el.classList.add('rotate-180'));
+            });
+
+            // Collapse All Accordions
+            document.getElementById('btn-collapse-all').addEventListener('click', () => {
+                document.querySelectorAll('.accordion-content').forEach(el => el.classList.add('hidden'));
+                document.querySelectorAll('.accordion-arrow').forEach(el => el.classList.remove('rotate-180'));
+            });
+
+            // Mobile Sidebar Toggle Button
+            document.getElementById('sidebar-toggle').addEventListener('click', () => {
+                document.getElementById('sidebar').classList.toggle('-translate-x-full');
+            });
+
+            // Diagram Animation Toggle
+            const animCheckbox = document.getElementById('toggle-animation');
+            if (animCheckbox) {
+                animCheckbox.addEventListener('change', (e) => {
+                    const flowLines = document.querySelectorAll('.flow-line');
+                    flowLines.forEach(line => {
+                        line.style.animationPlayState = e.target.checked ? 'running' : 'paused';
+                    });
+                });
+            }
+
+            // Search Filter Logic
+            const searchInput = document.getElementById('search-input');
+            if (searchInput) {
+                searchInput.addEventListener('input', (e) => {
+                    const query = e.target.value.toLowerCase();
+                    document.querySelectorAll('.nav-btn').forEach(btn => {
+                        const text = btn.innerText.toLowerCase();
+                        if (text.includes(query)) {
+                            btn.style.display = 'block';
+                        } else {
+                            btn.style.display = 'none';
+                        }
+                    });
+                });
+            }
+
+            // Live Telemetry Value Simulator
+            setInterval(() => {
+                const rpm = Math.floor(14200 + Math.random() * 750);
+                const soc = (97.8 + Math.random() * 1.2).toFixed(1);
+                document.getElementById('telemetry-rpm').innerText = rpm.toLocaleString();
+                document.getElementById('telemetry-soc').innerText = `${soc}%`;
+            }, 1200);
+
+            // Expand first accordion category by default
+            const firstContent = document.querySelector('.accordion-content');
+            if (firstContent) firstContent.classList.remove('hidden');
+        });
+    </script>
+</body>
+</html>
